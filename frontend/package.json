@@ -1,0 +1,22 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3.1.2",
+    "svelte": "^5.55.2",
+    "vite": "^5.4.21"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "bits-ui": "^2.17.3",
+    "lucide-svelte": "^1.0.1",
+    "tailwindcss": "^4.2.2"
+  }
+}

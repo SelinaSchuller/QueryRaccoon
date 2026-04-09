@@ -149,7 +149,6 @@ Inspired by DBeaver's features and Beekeeper Studio's UI.
 ```
 QueryRaccoon/
 ├── main.go
-├── wails.json
 ├── go.mod
 │
 ├── internal/
