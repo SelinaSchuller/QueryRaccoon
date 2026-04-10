@@ -1,6 +1,5 @@
 import {
   AddConnection,
-  Connect,
   Disconnect,
 } from "$wailsjs/go/bindings/ConnectionService";
 
@@ -17,10 +16,6 @@ export type ConnectionConfig = {
 
 export async function addConnection(config: ConnectionConfig): Promise<string> {
   return AddConnection(config);
-}
-
-export async function connectDB(id: string): Promise<void> {
-  return Connect(id);
 }
 
 export async function disconnectDB(id: string): Promise<void> {

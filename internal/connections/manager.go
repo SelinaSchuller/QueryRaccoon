@@ -71,6 +71,11 @@ func (m *Manager) Connect(id string) error {
 		return err
 	}
 
+	if err = conn.Driver.Ping(); err != nil {
+		conn.Driver.Disconnect()
+		return fmt.Errorf("could not reach database: %w", err)
+	}
+
 	conn.Connected = true
 	m.connections[parsedId] = conn
 	return nil
@@ -94,6 +99,14 @@ func (m *Manager) Disconnect(id string) error {
 	conn.Connected = false
 	m.connections[parsedId] = conn
 	return nil
+}
+
+func (m *Manager) Remove(id string) {
+	parsedId, err := uuid.Parse(id)
+	if err != nil {
+		return
+	}
+	delete(m.connections, parsedId)
 }
 
 func (m *Manager) Get(id string) (*Connection, bool) {

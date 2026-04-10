@@ -6,10 +6,6 @@ export function AddConnection(arg1) {
   return window['go']['bindings']['ConnectionService']['AddConnection'](arg1);
 }
 
-export function Connect(arg1) {
-  return window['go']['bindings']['ConnectionService']['Connect'](arg1);
-}
-
 export function Disconnect(arg1) {
   return window['go']['bindings']['ConnectionService']['Disconnect'](arg1);
 }

@@ -9,9 +9,9 @@
   let name = $state("");
   let host = $state("localhost");
   let port = $state(5432);
-  let user = $state("");
+  let user = $state("postgres");
   let password = $state("");
-  let database = $state("");
+  let database = $state("postgres");
   let driverType = $state<DriverType>("postgresql");
   let error = $state("");
   let loading = $state(false);
@@ -23,8 +23,23 @@
     mssql: 1433,
   };
 
+  const defaultUsers: Record<DriverType, string> = {
+    postgresql: 'postgres',
+    mysql: 'root',
+    sqlite: '',
+    mssql: '',
+  }
+  const defaultDatabases: Record<DriverType, string> = {
+    postgresql: 'postgres',
+    mysql: '',
+    sqlite: '',
+    mssql: 'master',
+  }
+
   function onDriverChange() {
     port = defaultPorts[driverType];
+    user = defaultUsers[driverType];
+    database = defaultDatabases[driverType];
   }
 
   async function submit() {
@@ -33,7 +48,7 @@
     error = "";
     loading = true;
     try {
-      const id = await connectionStore.add(name, {
+      await connectionStore.add(name, {
         Host: host,
         Port: port,
         User: user,
@@ -41,7 +56,6 @@
         Database: database,
         DriverType: driverType,
       });
-      await connectionStore.connect(id);
       onclose();
     } catch (e: any) {
       error = e?.message ?? String(e);
@@ -62,7 +76,7 @@
     <div class="px-6 py-5 space-y-4">
       <div>
         <label for="conn-name" class="block text-xs mb-1" style="color: {colors.text.muted}">Connection Name</label>
-        <input id="conn-name" bind:value={name} placeholder="My Database" class="w-full rounded-md px-2.5 py-1.5 text-xs outline-none box-border" style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.primary}" onfocus={e => (e.currentTarget as HTMLElement).style.borderColor = colors.accent.primary} onblur={e => (e.currentTarget as HTMLElement).style.borderColor = colors.border.primary} />
+        <input id="conn-name" bind:value={name} placeholder="My Database" autocapitalize="off" autocomplete="off" spellcheck={false} class="w-full rounded-md px-2.5 py-1.5 text-xs outline-none box-border" style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.primary}" onfocus={e => (e.currentTarget as HTMLElement).style.borderColor = colors.accent.primary} onblur={e => (e.currentTarget as HTMLElement).style.borderColor = colors.border.primary} />
       </div>
 
       <div>
@@ -78,13 +92,13 @@
       {#if driverType === "sqlite"}
         <div>
           <label for="conn-db-path" class="block text-xs mb-1" style="color: {colors.text.muted}">Database File Path</label>
-          <input id="conn-db-path" bind:value={database} placeholder="/path/to/database.db" class="w-full rounded-md px-2.5 py-1.5 text-xs outline-none box-border" style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.primary}" onfocus={e => (e.currentTarget as HTMLElement).style.borderColor = colors.accent.primary} onblur={e => (e.currentTarget as HTMLElement).style.borderColor = colors.border.primary} />
+          <input id="conn-db-path" bind:value={database} placeholder="/path/to/database.db" autocapitalize="off" autocomplete="off" spellcheck={false} class="w-full rounded-md px-2.5 py-1.5 text-xs outline-none box-border" style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.primary}" onfocus={e => (e.currentTarget as HTMLElement).style.borderColor = colors.accent.primary} onblur={e => (e.currentTarget as HTMLElement).style.borderColor = colors.border.primary} />
         </div>
       {:else}
         <div class="flex gap-3">
           <div class="flex-1">
             <label for="conn-host" class="block text-xs mb-1" style="color: {colors.text.muted}">Host</label>
-            <input id="conn-host" bind:value={host} placeholder="localhost" class="w-full rounded-md px-2.5 py-1.5 text-xs outline-none box-border" style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.primary}" onfocus={e => (e.currentTarget as HTMLElement).style.borderColor = colors.accent.primary} onblur={e => (e.currentTarget as HTMLElement).style.borderColor = colors.border.primary} />
+            <input id="conn-host" bind:value={host} placeholder="localhost" autocapitalize="off" autocomplete="off" spellcheck={false} class="w-full rounded-md px-2.5 py-1.5 text-xs outline-none box-border" style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.primary}" onfocus={e => (e.currentTarget as HTMLElement).style.borderColor = colors.accent.primary} onblur={e => (e.currentTarget as HTMLElement).style.borderColor = colors.border.primary} />
           </div>
           <div class="w-24">
             <label for="conn-port" class="block text-xs mb-1" style="color: {colors.text.muted}">Port</label>
@@ -95,7 +109,7 @@
         <div class="flex gap-3">
           <div class="flex-1">
             <label for="conn-user" class="block text-xs mb-1" style="color: {colors.text.muted}">Username</label>
-            <input id="conn-user" bind:value={user} placeholder="postgres" class="w-full rounded-md px-2.5 py-1.5 text-xs outline-none box-border" style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.primary}" onfocus={e => (e.currentTarget as HTMLElement).style.borderColor = colors.accent.primary} onblur={e => (e.currentTarget as HTMLElement).style.borderColor = colors.border.primary} />
+            <input id="conn-user" bind:value={user} autocapitalize="off" autocomplete="off" spellcheck={false} class="w-full rounded-md px-2.5 py-1.5 text-xs outline-none box-border" style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.primary}" onfocus={e => (e.currentTarget as HTMLElement).style.borderColor = colors.accent.primary} onblur={e => (e.currentTarget as HTMLElement).style.borderColor = colors.border.primary} />
           </div>
           <div class="flex-1">
             <label for="conn-pass" class="block text-xs mb-1" style="color: {colors.text.muted}">Password</label>
@@ -105,7 +119,7 @@
 
         <div>
           <label for="conn-db" class="block text-xs mb-1" style="color: {colors.text.muted}">Database</label>
-          <input id="conn-db" bind:value={database} placeholder="postgres" class="w-full rounded-md px-2.5 py-1.5 text-xs outline-none box-border" style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.primary}" onfocus={e => (e.currentTarget as HTMLElement).style.borderColor = colors.accent.primary} onblur={e => (e.currentTarget as HTMLElement).style.borderColor = colors.border.primary} />
+          <input id="conn-db" bind:value={database} autocapitalize="off" autocomplete="off" spellcheck={false} class="w-full rounded-md px-2.5 py-1.5 text-xs outline-none box-border" style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.primary}" onfocus={e => (e.currentTarget as HTMLElement).style.borderColor = colors.accent.primary} onblur={e => (e.currentTarget as HTMLElement).style.borderColor = colors.border.primary} />
         </div>
       {/if}
 

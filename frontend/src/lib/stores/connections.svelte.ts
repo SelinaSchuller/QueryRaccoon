@@ -1,4 +1,4 @@
-import { addConnection, connectDB, disconnectDB } from '$lib/api/connections'
+import { addConnection, disconnectDB } from '$lib/api/connections'
 import type { ConnectionConfig } from '$lib/api/connections'
 
 export type SavedConnection = {
@@ -17,16 +17,13 @@ class ConnectionStore {
   }
 
   async add(name: string, config: ConnectionConfig): Promise<string> {
+    if (this.list.some(c => c.name === name)) {
+      throw new Error(`A connection named "${name}" already exists`)
+    }
     const id = await addConnection(config)
-    this.list.push({ id, name, config, connected: false })
-    return id
-  }
-
-  async connect(id: string): Promise<void> {
-    await connectDB(id)
-    const conn = this.list.find(c => c.id === id)
-    if (conn) conn.connected = true
+    this.list.push({ id, name, config, connected: true })
     this.activeId = id
+    return id
   }
 
   async disconnect(id: string): Promise<void> {

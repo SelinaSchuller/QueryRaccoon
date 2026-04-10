@@ -25,8 +25,8 @@ func main() {
 
 	err := wails.Run(&options.App{
 		Title:  "QueryRaccoon",
-		Width:  1024,
-		Height: 768,
+		Width:  1440,
+		Height: 860,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

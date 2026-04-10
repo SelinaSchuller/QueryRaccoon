@@ -14,11 +14,15 @@ func NewConnectionService(manager *connections.Manager) *ConnectionService {
 }
 
 func (s *ConnectionService) AddConnection(config drivers.ConnectionConfig) (string, error) {
-	return s.Manager.Add(config)
-}
-
-func (s *ConnectionService) Connect(id string) error {
-	return s.Manager.Connect(id)
+	id, err := s.Manager.Add(config)
+	if err != nil {
+		return "", err
+	}
+	if err = s.Manager.Connect(id); err != nil {
+		s.Manager.Remove(id)
+		return "", err
+	}
+	return id, nil
 }
 
 func (s *ConnectionService) Disconnect(id string) error {

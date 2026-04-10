@@ -4,6 +4,4 @@ import {drivers} from '../models';
 
 export function AddConnection(arg1:drivers.ConnectionConfig):Promise<string>;
 
-export function Connect(arg1:string):Promise<void>;
-
 export function Disconnect(arg1:string):Promise<void>;
