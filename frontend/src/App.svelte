@@ -1,79 +1,27 @@
-<script>
-  import logo from './assets/images/logo-universal.png'
-  import {Greet} from '../wailsjs/go/main/App.js'
-
-  let resultText = "Please enter your name below 👇"
-  let name
-
-  function greet() {
-    Greet(name).then(result => resultText = result)
-  }
+<script lang="ts">
+  import Sidebar from "$lib/components/layout/Sidebar.svelte";
+  import TabBar from "$lib/components/layout/TabBar.svelte";
+  import StatusBar from "$lib/components/layout/StatusBar.svelte";
+  import QueryEditor from "$lib/components/editor/QueryEditor.svelte";
+  import ResultsPane from "$lib/components/editor/ResultsPane.svelte";
 </script>
 
-<main>
-  <img alt="Wails logo" id="logo" src="{logo}">
-  <div class="result" id="result">{resultText}</div>
-  <div class="input-box" id="input">
-    <input autocomplete="off" bind:value={name} class="input" id="name" type="text"/>
-    <button class="btn" on:click={greet}>Greet</button>
+<div class="flex flex-col h-screen bg-[#111113] text-[#f4f4f5] overflow-hidden">
+  <TabBar />
+
+  <div class="flex flex-1 overflow-hidden">
+    <Sidebar />
+
+    <div class="flex flex-col flex-1 overflow-hidden">
+      <div class="flex-1 overflow-hidden">
+        <QueryEditor />
+      </div>
+      <div class="h-px bg-[#3f3f46]"></div>
+      <div class="h-64 overflow-hidden shrink-0">
+        <ResultsPane />
+      </div>
+    </div>
   </div>
-</main>
 
-<style>
-
-  #logo {
-    display: block;
-    width: 50%;
-    height: 50%;
-    margin: auto;
-    padding: 10% 0 0;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: 100% 100%;
-    background-origin: content-box;
-  }
-
-  .result {
-    height: 20px;
-    line-height: 20px;
-    margin: 1.5rem auto;
-  }
-
-  .input-box .btn {
-    width: 60px;
-    height: 30px;
-    line-height: 30px;
-    border-radius: 3px;
-    border: none;
-    margin: 0 0 0 20px;
-    padding: 0 8px;
-    cursor: pointer;
-  }
-
-  .input-box .btn:hover {
-    background-image: linear-gradient(to top, #cfd9df 0%, #e2ebf0 100%);
-    color: #333333;
-  }
-
-  .input-box .input {
-    border: none;
-    border-radius: 3px;
-    outline: none;
-    height: 30px;
-    line-height: 30px;
-    padding: 0 10px;
-    background-color: rgba(240, 240, 240, 1);
-    -webkit-font-smoothing: antialiased;
-  }
-
-  .input-box .input:hover {
-    border: none;
-    background-color: rgba(255, 255, 255, 1);
-  }
-
-  .input-box .input:focus {
-    border: none;
-    background-color: rgba(255, 255, 255, 1);
-  }
-
-</style>
+  <StatusBar />
+</div>

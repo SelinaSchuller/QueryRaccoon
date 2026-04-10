@@ -1,6 +1,9 @@
 package main
 
 import (
+	"QueryRaccoon/bindings"
+	"QueryRaccoon/internal/connections"
+	"QueryRaccoon/internal/query"
 	"embed"
 
 	"github.com/wailsapp/wails/v2"
@@ -12,10 +15,14 @@ import (
 var assets embed.FS
 
 func main() {
-	// Create an instance of the app structure
 	app := NewApp()
 
-	// Create application with options
+	manager := connections.NewManager()
+	queryService := query.NewService(manager)
+
+	connBinding := bindings.NewConnectionService(manager)
+	queryBinding := bindings.NewQueryService(queryService)
+
 	err := wails.Run(&options.App{
 		Title:  "QueryRaccoon",
 		Width:  1024,
@@ -27,9 +34,10 @@ func main() {
 		OnStartup:        app.startup,
 		Bind: []interface{}{
 			app,
+			connBinding,
+			queryBinding,
 		},
 	})
-
 	if err != nil {
 		println("Error:", err.Error())
 	}
