@@ -39,3 +39,26 @@ export namespace drivers {
 
 }
 
+export namespace schema {
+	
+	export class Column {
+	    Name: string;
+	    Type: string;
+	    Nullable: boolean;
+	    Default: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Column(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Name = source["Name"];
+	        this.Type = source["Type"];
+	        this.Nullable = source["Nullable"];
+	        this.Default = source["Default"];
+	    }
+	}
+
+}
+

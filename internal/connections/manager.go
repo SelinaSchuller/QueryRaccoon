@@ -6,6 +6,11 @@ import (
 	"QueryRaccoon/internal/drivers/mysql"
 	"QueryRaccoon/internal/drivers/postgres"
 	"QueryRaccoon/internal/drivers/sqlite"
+	"QueryRaccoon/internal/schema"
+	schemamssql "QueryRaccoon/internal/schema/mssql"
+	schemamysql "QueryRaccoon/internal/schema/mysql"
+	schemapg "QueryRaccoon/internal/schema/postgres"
+	schemasqlite "QueryRaccoon/internal/schema/sqlite"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -18,6 +23,7 @@ type Manager struct {
 type Connection struct {
 	config    drivers.ConnectionConfig
 	Driver    drivers.Driver
+	Inspector schema.Inspector
 	Connected bool
 }
 
@@ -74,6 +80,18 @@ func (m *Manager) Connect(id string) error {
 	if err = conn.Driver.Ping(); err != nil {
 		conn.Driver.Disconnect()
 		return fmt.Errorf("could not reach database: %w", err)
+	}
+
+	db := conn.Driver.GetDB()
+	switch conn.config.DriverType {
+	case drivers.PostgreSQL:
+		conn.Inspector = schemapg.NewPostgresInspector(db)
+	case drivers.MySQL:
+		conn.Inspector = schemamysql.NewMySQLInspector(db)
+	case drivers.SQLite:
+		conn.Inspector = schemasqlite.NewSQLiteInspector(db)
+	case drivers.MSSQL:
+		conn.Inspector = schemamssql.NewMSSQLInspector(db)
 	}
 
 	conn.Connected = true

@@ -63,6 +63,13 @@ class TabStore {
     if (tab) tab.connectionId = connectionId
   }
 
+  async openDataTab(connectionId: string, name: string, sql: string): Promise<void> {
+    const tab = makeTab({ name, connectionId, sql })
+    this.list.push(tab)
+    this.activeId = tab.id
+    await this.execute(tab.id)
+  }
+
   async execute(id: string): Promise<void> {
     const tab = this.list.find(t => t.id === id)
     if (!tab || !tab.connectionId || !tab.sql.trim()) return

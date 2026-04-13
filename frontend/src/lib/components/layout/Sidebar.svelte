@@ -1,7 +1,9 @@
 <script lang="ts">
   import { connectionStore } from "$lib/stores/connections.svelte";
   import { tabStore } from "$lib/stores/tabs.svelte";
+  import { schemaStore } from "$lib/stores/schema.svelte";
   import ConnectionDialog from "$lib/components/connections/ConnectionDialog.svelte";
+  import TreeNode from "$lib/components/schema-browser/TreeNode.svelte";
   import { colors } from "$lib/colors";
 
   let showDialog = $state(false);
@@ -10,12 +12,40 @@
     const tab = tabStore.active;
     if (tab) tabStore.setConnection(tab.id, id);
     connectionStore.activeId = id;
+    if (!schemaStore.trees[id]) {
+      schemaStore.loadDatabases(id);
+    }
   }
 
   async function disconnect(id: string, e: MouseEvent) {
     e.stopPropagation();
     await connectionStore.disconnect(id);
   }
+
+  function handleTableClick(schemaName: string, name: string, _type: 'table' | 'view') {
+    if (!activeConn) return
+    const driver = activeConn.config.DriverType
+    let sql: string
+    if (driver === 'mysql') {
+      sql = `SELECT * FROM \`${schemaName}\`.\`${name}\` LIMIT 100`
+    } else if (driver === 'mssql') {
+      sql = `SELECT TOP 100 * FROM [${schemaName}].[${name}]`
+    } else if (driver === 'sqlite') {
+      sql = `SELECT * FROM "${name}" LIMIT 100`
+    } else {
+      sql = `SELECT * FROM "${schemaName}"."${name}" LIMIT 100`
+    }
+    tabStore.openDataTab(activeConn.id, name, sql)
+  }
+
+  async function refresh() {
+    if (!activeConn) return
+    await schemaStore.refresh(activeConn.id)
+  }
+
+  let activeConn = $derived(connectionStore.active);
+  let tree = $derived(activeConn ? (schemaStore.trees[activeConn.id] ?? []) : []);
+  let treeLoading = $derived(activeConn ? (schemaStore.loading[activeConn.id] ?? false) : false);
 </script>
 
 <aside class="w-60 flex flex-col shrink-0" style="background-color: {colors.background.secondary}; border-right: 1px solid {colors.border.primary}">
@@ -31,9 +61,9 @@
     >+</button>
   </div>
 
-  <div class="flex-1 overflow-y-auto py-1">
+  <div class="py-1" style="border-bottom: 1px solid {colors.border.primary}">
     {#if connectionStore.list.length === 0}
-      <p class="text-xs px-3 py-4 text-center" style="color: {colors.text.muted}">No connections yet</p>
+      <p class="text-xs px-3 py-3 text-center" style="color: {colors.text.muted}">No connections yet</p>
     {:else}
       {#each connectionStore.list as conn (conn.id)}
         <button
@@ -62,6 +92,39 @@
             >✕</span>
           {/if}
         </button>
+      {/each}
+    {/if}
+  </div>
+
+  <div class="flex items-center justify-between px-3 py-1.5" style="border-bottom: 1px solid {colors.border.primary}">
+    <span class="text-xs font-semibold uppercase tracking-wider" style="color: {colors.text.muted}">Schema</span>
+    {#if activeConn}
+      <button
+        onclick={refresh}
+        class="w-5 h-5 flex items-center justify-center rounded text-sm leading-none transition-colors cursor-pointer"
+        style="color: {colors.text.muted}"
+        onmouseenter={e => (e.currentTarget as HTMLElement).style.color = colors.accent.primary}
+        onmouseleave={e => (e.currentTarget as HTMLElement).style.color = colors.text.muted}
+        title="Refresh schema"
+      >↺</button>
+    {/if}
+  </div>
+
+  <div class="flex-1 overflow-y-auto py-1">
+    {#if treeLoading}
+      <p class="text-xs px-3 py-3 text-center" style="color: {colors.text.muted}">Loading…</p>
+    {:else if !activeConn}
+      <p class="text-xs px-3 py-3 text-center" style="color: {colors.text.muted}">Select a connection</p>
+    {:else if tree.length === 0}
+      <p class="text-xs px-3 py-3 text-center" style="color: {colors.text.muted}">No databases found</p>
+    {:else}
+      {#each tree as node (node.id)}
+        <TreeNode
+          {node}
+          connectionId={activeConn.id}
+          onTableClick={handleTableClick}
+          onRefreshNode={(n) => schemaStore.refreshNode(activeConn.id, n)}
+        />
       {/each}
     {/if}
   </div>

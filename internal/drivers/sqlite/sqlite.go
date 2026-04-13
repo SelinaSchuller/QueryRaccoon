@@ -20,6 +20,8 @@ func (d *SQLiteDriver) Connect(config drivers.ConnectionConfig) error {
 	return nil
 }
 
+func (d *SQLiteDriver) GetDB() *sql.DB { return d.sql }
+
 func (d *SQLiteDriver) Disconnect() error {
 	return d.sql.Close()
 }
@@ -29,30 +31,5 @@ func (d *SQLiteDriver) Ping() error {
 }
 
 func (d *SQLiteDriver) Execute(query string) (*drivers.QueryResult, error) {
-	var res drivers.QueryResult
-	rows, err := d.sql.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	res.Columns, err = rows.Columns()
-	if err != nil {
-		return nil, err
-	}
-
-	for rows.Next() {
-		cols := make([]interface{}, len(res.Columns))
-
-		pointers := make([]interface{}, len(res.Columns))
-		for i := range cols {
-			pointers[i] = &cols[i]
-		}
-		if err := rows.Scan(pointers...); err != nil {
-			return nil, err
-		}
-
-		res.Rows = append(res.Rows, cols)
-	}
-	return &res, nil
+	return drivers.Execute(d.sql, query)
 }

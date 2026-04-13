@@ -22,6 +22,7 @@ func main() {
 
 	connBinding := bindings.NewConnectionService(manager)
 	queryBinding := bindings.NewQueryService(queryService)
+	schemaBinding := bindings.NewSchemaService(manager)
 
 	err := wails.Run(&options.App{
 		Title:  "QueryRaccoon",
@@ -36,6 +37,7 @@ func main() {
 			app,
 			connBinding,
 			queryBinding,
+			schemaBinding,
 		},
 	})
 	if err != nil {

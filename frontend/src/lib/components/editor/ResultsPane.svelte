@@ -2,11 +2,14 @@
   import { tabStore } from "$lib/stores/tabs.svelte";
   import { colors } from "$lib/colors";
 
+  type Props = { collapsed?: boolean; onToggleCollapse?: () => void }
+  let { collapsed = false, onToggleCollapse }: Props = $props()
+
   let tab = $derived(tabStore.active);
 </script>
 
 <div class="flex flex-col h-full" style="background-color: {colors.background.primary}">
-  <div class="flex items-center gap-3 px-3 py-2" style="background-color: {colors.background.secondary}; border-bottom: 1px solid {colors.border.primary}">
+  <div class="flex items-center gap-3 px-3 py-2 shrink-0" style="background-color: {colors.background.secondary}; border-bottom: 1px solid {colors.border.primary}">
     <span class="text-xs font-semibold uppercase tracking-wider" style="color: {colors.text.muted}">Results</span>
     {#if tab?.result}
       <span class="text-xs" style="color: {colors.text.muted}">{tab.result.Rows.length} row{tab.result.Rows.length !== 1 ? 's' : ''}</span>
@@ -14,9 +17,18 @@
     {#if tab?.executionTime != null}
       <span class="text-xs" style="color: {colors.text.muted}">· {tab.executionTime}ms</span>
     {/if}
+
+    <button
+      onclick={onToggleCollapse}
+      class="ml-auto w-5 h-5 flex items-center justify-center rounded text-xs transition-colors cursor-pointer"
+      style="color: {colors.text.muted}"
+      onmouseenter={e => (e.currentTarget as HTMLElement).style.color = colors.text.primary}
+      onmouseleave={e => (e.currentTarget as HTMLElement).style.color = colors.text.muted}
+      title={collapsed ? 'Expand results' : 'Collapse results'}
+    >{collapsed ? '▴' : '▾'}</button>
   </div>
 
-  <div class="flex-1 overflow-auto">
+  <div class="flex-1 overflow-auto" style="display: {collapsed ? 'none' : 'block'}">
     {#if tab?.isExecuting}
       <div class="flex items-center justify-center h-full gap-2 text-sm" style="color: {colors.text.muted}">
         <span class="animate-spin">⟳</span> Executing…
