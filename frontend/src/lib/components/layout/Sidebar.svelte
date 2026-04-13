@@ -8,10 +8,20 @@
 
   let showDialog = $state(false);
 
-  function selectConnection(id: string) {
+  async function selectConnection(id: string) {
     const tab = tabStore.active;
     if (tab) tabStore.setConnection(tab.id, id);
     connectionStore.activeId = id;
+
+    const conn = connectionStore.list.find(c => c.id === id)
+    if (conn && !conn.connected) {
+      try {
+        await connectionStore.connect(id)
+      } catch {
+        return
+      }
+    }
+
     if (!schemaStore.trees[id]) {
       schemaStore.loadDatabases(id);
     }

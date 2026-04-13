@@ -11,6 +11,7 @@ import (
 	schemamysql "QueryRaccoon/internal/schema/mysql"
 	schemapg "QueryRaccoon/internal/schema/postgres"
 	schemasqlite "QueryRaccoon/internal/schema/sqlite"
+	"QueryRaccoon/internal/storage"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -21,45 +22,103 @@ type Manager struct {
 }
 
 type Connection struct {
+	Name      string
 	config    drivers.ConnectionConfig
 	Driver    drivers.Driver
 	Inspector schema.Inspector
 	Connected bool
 }
 
+type ConnectionInfo struct {
+	ID        string
+	Name      string
+	Config    drivers.ConnectionConfig
+	Connected bool
+}
+
 func NewManager() *Manager {
-	return &Manager{
+	m := &Manager{
 		connections: make(map[uuid.UUID]Connection),
+	}
+
+	saved, err := storage.Load()
+	if err == nil && len(saved) > 0 {
+		m.restore(saved)
+	} else if err == nil && len(saved) == 0 {
+		if seed, seedErr := storage.LoadDevSeed(); seedErr == nil && len(seed) > 0 {
+			m.restore(seed)
+			_ = m.save()
+		}
+	}
+
+	return m
+}
+
+func (m *Manager) restore(saved []storage.SavedConnection) {
+	for _, s := range saved {
+		id, err := uuid.Parse(s.ID)
+		if err != nil {
+			continue
+		}
+		d := driverFor(s.Config.DriverType)
+		if d == nil {
+			continue
+		}
+		m.connections[id] = Connection{
+			Name:      s.Name,
+			config:    s.Config,
+			Driver:    d,
+			Connected: false,
+		}
 	}
 }
 
-func (m *Manager) Add(config drivers.ConnectionConfig) (string, error) {
-	uuid, err := uuid.NewRandom()
+func (m *Manager) save() error {
+	saved := make([]storage.SavedConnection, 0, len(m.connections))
+	for id, conn := range m.connections {
+		saved = append(saved, storage.SavedConnection{
+			ID:     id.String(),
+			Name:   conn.Name,
+			Config: conn.config,
+		})
+	}
+	return storage.Save(saved)
+}
+
+func driverFor(dt drivers.DriverType) drivers.Driver {
+	switch dt {
+	case drivers.PostgreSQL:
+		return &postgres.PostgresDriver{}
+	case drivers.MySQL:
+		return &mysql.MySQLDriver{}
+	case drivers.SQLite:
+		return &sqlite.SQLiteDriver{}
+	case drivers.MSSQL:
+		return &mssql.MSSQLDriver{}
+	default:
+		return nil
+	}
+}
+
+func (m *Manager) Add(name string, config drivers.ConnectionConfig) (string, error) {
+	id, err := uuid.NewRandom()
 	if err != nil {
 		return "", err
 	}
 
-	var d drivers.Driver
-	switch config.DriverType {
-	case drivers.PostgreSQL:
-		d = &postgres.PostgresDriver{}
-	case drivers.MySQL:
-		d = &mysql.MySQLDriver{}
-	case drivers.SQLite:
-		d = &sqlite.SQLiteDriver{}
-	case drivers.MSSQL:
-		d = &mssql.MSSQLDriver{}
-	default:
+	d := driverFor(config.DriverType)
+	if d == nil {
 		return "", fmt.Errorf("unknown driver type: %s", config.DriverType)
 	}
 
-	driver := Connection{
+	m.connections[id] = Connection{
+		Name:      name,
 		config:    config,
 		Driver:    d,
 		Connected: false,
 	}
-	m.connections[uuid] = driver
-	return uuid.String(), nil
+	_ = m.save()
+	return id.String(), nil
 }
 
 func (m *Manager) Connect(id string) error {
@@ -72,8 +131,7 @@ func (m *Manager) Connect(id string) error {
 		return fmt.Errorf("connection %s not found", id)
 	}
 
-	err = conn.Driver.Connect(conn.config)
-	if err != nil {
+	if err = conn.Driver.Connect(conn.config); err != nil {
 		return err
 	}
 
@@ -109,8 +167,7 @@ func (m *Manager) Disconnect(id string) error {
 		return fmt.Errorf("connection %s not found", id)
 	}
 
-	err = conn.Driver.Disconnect()
-	if err != nil {
+	if err = conn.Driver.Disconnect(); err != nil {
 		return err
 	}
 
@@ -125,6 +182,7 @@ func (m *Manager) Remove(id string) {
 		return
 	}
 	delete(m.connections, parsedId)
+	_ = m.save()
 }
 
 func (m *Manager) Get(id string) (*Connection, bool) {
@@ -136,6 +194,18 @@ func (m *Manager) Get(id string) (*Connection, bool) {
 	if !ok {
 		return nil, false
 	}
-
 	return &conn, true
+}
+
+func (m *Manager) GetAll() []ConnectionInfo {
+	result := make([]ConnectionInfo, 0, len(m.connections))
+	for id, conn := range m.connections {
+		result = append(result, ConnectionInfo{
+			ID:        id.String(),
+			Name:      conn.Name,
+			Config:    conn.config,
+			Connected: conn.Connected,
+		})
+	}
+	return result
 }

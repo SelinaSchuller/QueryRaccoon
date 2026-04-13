@@ -1,10 +1,16 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import Sidebar from "$lib/components/layout/Sidebar.svelte";
   import TabBar from "$lib/components/layout/TabBar.svelte";
   import StatusBar from "$lib/components/layout/StatusBar.svelte";
   import QueryEditor from "$lib/components/editor/QueryEditor.svelte";
   import ResultsPane from "$lib/components/editor/ResultsPane.svelte";
   import { colors } from "$lib/colors";
+  import { connectionStore } from "$lib/stores/connections.svelte";
+
+  onMount(async () => {
+    await connectionStore.loadSaved()
+  })
 
   const EDITOR_HEADER_H = 40
   const RESULTS_HEADER_H = 37

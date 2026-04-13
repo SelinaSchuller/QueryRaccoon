@@ -50,7 +50,7 @@ func Execute(db *sql.DB, query string) (*QueryResult, error) {
 }
 
 func queryRows(db *sql.DB, query string) (*QueryResult, error) {
-	var res QueryResult
+	res := QueryResult{Rows: [][]any{}}
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err

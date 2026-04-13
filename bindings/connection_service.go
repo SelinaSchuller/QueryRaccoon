@@ -13,8 +13,8 @@ func NewConnectionService(manager *connections.Manager) *ConnectionService {
 	return &ConnectionService{Manager: manager}
 }
 
-func (s *ConnectionService) AddConnection(config drivers.ConnectionConfig) (string, error) {
-	id, err := s.Manager.Add(config)
+func (s *ConnectionService) AddConnection(name string, config drivers.ConnectionConfig) (string, error) {
+	id, err := s.Manager.Add(name, config)
 	if err != nil {
 		return "", err
 	}
@@ -23,6 +23,14 @@ func (s *ConnectionService) AddConnection(config drivers.ConnectionConfig) (stri
 		return "", err
 	}
 	return id, nil
+}
+
+func (s *ConnectionService) GetConnections() []connections.ConnectionInfo {
+	return s.Manager.GetAll()
+}
+
+func (s *ConnectionService) Connect(id string) error {
+	return s.Manager.Connect(id)
 }
 
 func (s *ConnectionService) Disconnect(id string) error {

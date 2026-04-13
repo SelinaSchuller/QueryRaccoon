@@ -1,0 +1,26 @@
+[
+  {
+    "id": "54ffefe7-e478-4d87-a67a-742d00e8a853",
+    "name": "master",
+    "config": {
+      "Host": "localhost",
+      "Port": 1433,
+      "User": "sa",
+      "Password": "Welkom01!",
+      "DriverType": "mssql",
+      "Database": "njoin"
+    }
+  },
+  {
+    "id": "c04417f1-1394-46e1-b5a5-d6574b15cca7",
+    "name": "everhour",
+    "config": {
+      "Host": "localhost",
+      "Port": 9090,
+      "User": "postgres",
+      "Password": "Welkom01!",
+      "DriverType": "postgresql",
+      "Database": "everhourapi"
+    }
+  }
+]

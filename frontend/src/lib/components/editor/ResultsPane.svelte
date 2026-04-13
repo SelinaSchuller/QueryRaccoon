@@ -51,7 +51,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each tab.result.Rows as row, i}
+          {#each tab.result.Rows ?? [] as row, i}
             <tr style="background-color: {i % 2 === 0 ? colors.background.primary : colors.background.secondary}">
               {#each row as cell}
                 <td class="px-3 py-1.5 whitespace-nowrap max-w-xs truncate font-mono" style="color: {colors.text.primary}; border-bottom: 1px solid {colors.border.primary}">
@@ -64,6 +64,13 @@
               {/each}
             </tr>
           {/each}
+          {#if (tab.result.Rows ?? []).length === 0 && tab.result.Columns.length > 0}
+            <tr>
+              <td colspan={tab.result.Columns.length} class="px-3 py-6 text-center text-sm" style="color: {colors.text.muted}">
+                No rows
+              </td>
+            </tr>
+          {/if}
         </tbody>
       </table>
 
