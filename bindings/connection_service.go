@@ -36,3 +36,22 @@ func (s *ConnectionService) Connect(id string) error {
 func (s *ConnectionService) Disconnect(id string) error {
 	return s.Manager.Disconnect(id)
 }
+
+func (s *ConnectionService) RemoveConnection(id string) error {
+	conn, ok := s.Manager.Get(id)
+	if ok && conn.Connected {
+		_ = s.Manager.Disconnect(id)
+	}
+	s.Manager.Remove(id)
+	return nil
+}
+
+func (s *ConnectionService) UpdateConnection(id, name string, config drivers.ConnectionConfig) (string, error) {
+	if err := s.Manager.Update(id, name, config); err != nil {
+		return "", err
+	}
+	if err := s.Manager.Connect(id); err != nil {
+		return "", err
+	}
+	return id, nil
+}

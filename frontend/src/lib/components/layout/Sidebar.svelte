@@ -1,12 +1,35 @@
 <script lang="ts">
   import { connectionStore } from "$lib/stores/connections.svelte";
+  import type { SavedConnection } from "$lib/stores/connections.svelte";
   import { tabStore } from "$lib/stores/tabs.svelte";
   import { schemaStore } from "$lib/stores/schema.svelte";
   import ConnectionDialog from "$lib/components/connections/ConnectionDialog.svelte";
+  import ContextMenu from "$lib/components/connections/ContextMenu.svelte";
   import TreeNode from "$lib/components/schema-browser/TreeNode.svelte";
   import { colors } from "$lib/colors";
 
   let showDialog = $state(false);
+  let editingConn = $state<SavedConnection | undefined>(undefined);
+  let contextMenu = $state<{ x: number; y: number; conn: SavedConnection } | null>(null);
+
+  function openContextMenu(e: MouseEvent, conn: SavedConnection) {
+    e.preventDefault();
+    e.stopPropagation();
+    contextMenu = { x: e.clientX, y: e.clientY, conn };
+  }
+
+  function closeContextMenu() {
+    contextMenu = null;
+  }
+
+  function openEdit(conn: SavedConnection) {
+    editingConn = conn;
+    showDialog = true;
+  }
+
+  async function removeConn(id: string) {
+    await connectionStore.remove(id);
+  }
 
   async function selectConnection(id: string) {
     const tab = tabStore.active;
@@ -78,6 +101,7 @@
       {#each connectionStore.list as conn (conn.id)}
         <button
           onclick={() => selectConnection(conn.id)}
+          oncontextmenu={(e) => openContextMenu(e, conn)}
           class="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors group cursor-pointer"
           style="background-color: {connectionStore.activeId === conn.id ? colors.background.tertiary : 'transparent'}"
           onmouseenter={e => { if (connectionStore.activeId !== conn.id) (e.currentTarget as HTMLElement).style.backgroundColor = colors.background.tertiary }}
@@ -141,5 +165,33 @@
 </aside>
 
 {#if showDialog}
-  <ConnectionDialog onclose={() => showDialog = false} />
+  <ConnectionDialog
+    existing={editingConn}
+    onclose={() => { showDialog = false; editingConn = undefined; }}
+  />
+{/if}
+
+{#if contextMenu}
+  <ContextMenu
+    x={contextMenu.x}
+    y={contextMenu.y}
+    onclose={closeContextMenu}
+    items={[
+      {
+        label: contextMenu.conn.connected ? 'Disconnect' : 'Connect',
+        action: () => contextMenu!.conn.connected
+          ? connectionStore.disconnect(contextMenu!.conn.id)
+          : connectionStore.connect(contextMenu!.conn.id),
+      },
+      {
+        label: 'Edit Connection',
+        action: () => openEdit(contextMenu!.conn),
+      },
+      {
+        label: 'Remove Connection',
+        danger: true,
+        action: () => removeConn(contextMenu!.conn.id),
+      },
+    ]}
+  />
 {/if}

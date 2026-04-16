@@ -1,4 +1,4 @@
-import { addConnection, getConnections, reconnect, disconnectDB } from '$lib/api/connections'
+import { addConnection, getConnections, reconnect, disconnectDB, removeConnection, updateConnection } from '$lib/api/connections'
 import type { ConnectionConfig } from '$lib/api/connections'
 
 export type SavedConnection = {
@@ -49,9 +49,20 @@ class ConnectionStore {
     if (this.activeId === id) this.activeId = null
   }
 
-  remove(id: string): void {
+  async remove(id: string): Promise<void> {
+    await removeConnection(id)
     this.list = this.list.filter(c => c.id !== id)
     if (this.activeId === id) this.activeId = null
+  }
+
+  async update(id: string, name: string, config: ConnectionConfig): Promise<void> {
+    await updateConnection(id, name, config)
+    const conn = this.list.find(c => c.id === id)
+    if (conn) {
+      conn.name = name
+      conn.config = config
+      conn.connected = true
+    }
   }
 }
 

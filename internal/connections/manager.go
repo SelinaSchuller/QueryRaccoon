@@ -185,6 +185,31 @@ func (m *Manager) Remove(id string) {
 	_ = m.save()
 }
 
+func (m *Manager) Update(id, name string, config drivers.ConnectionConfig) error {
+	parsedId, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+	conn, ok := m.connections[parsedId]
+	if !ok {
+		return fmt.Errorf("connection %s not found", id)
+	}
+	if conn.Connected {
+		_ = conn.Driver.Disconnect()
+	}
+	d := driverFor(config.DriverType)
+	if d == nil {
+		return fmt.Errorf("unknown driver type: %s", config.DriverType)
+	}
+	m.connections[parsedId] = Connection{
+		Name:   name,
+		config: config,
+		Driver: d,
+	}
+	_ = m.save()
+	return nil
+}
+
 func (m *Manager) Get(id string) (*Connection, bool) {
 	parsedId, err := uuid.Parse(id)
 	if err != nil {

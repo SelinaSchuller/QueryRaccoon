@@ -10,3 +10,7 @@ export function Connect(arg1:string):Promise<void>;
 export function Disconnect(arg1:string):Promise<void>;
 
 export function GetConnections():Promise<Array<connections.ConnectionInfo>>;
+
+export function RemoveConnection(arg1:string):Promise<void>;
+
+export function UpdateConnection(arg1:string,arg2:string,arg3:drivers.ConnectionConfig):Promise<string>;

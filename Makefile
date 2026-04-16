@@ -1,6 +1,6 @@
 .PHONY: dev build reset-connections
 
-dev:
+dev: reset-connections
 	wails dev
 
 build:

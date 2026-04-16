@@ -1,26 +1,26 @@
 [
   {
-    "id": "54ffefe7-e478-4d87-a67a-742d00e8a853",
-    "name": "master",
+    "id": "string",
+    "name": "connection",
     "config": {
       "Host": "localhost",
       "Port": 1433,
-      "User": "sa",
-      "Password": "Welkom01!",
+      "User": "username",
+      "Password": "password",
       "DriverType": "mssql",
-      "Database": "njoin"
+      "Database": "dbname"
     }
   },
   {
-    "id": "c04417f1-1394-46e1-b5a5-d6574b15cca7",
-    "name": "everhour",
+    "id": "string",
+    "name": "connection",
     "config": {
       "Host": "localhost",
       "Port": 9090,
       "User": "postgres",
-      "Password": "Welkom01!",
+      "Password": "password",
       "DriverType": "postgresql",
-      "Database": "everhourapi"
+      "Database": "dbname"
     }
   }
 ]

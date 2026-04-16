@@ -3,6 +3,8 @@ import {
   Connect,
   Disconnect,
   GetConnections,
+  RemoveConnection,
+  UpdateConnection,
 } from '$wailsjs/go/bindings/ConnectionService'
 import type { connections } from '$wailsjs/go/models'
 
@@ -33,4 +35,12 @@ export async function reconnect(id: string): Promise<void> {
 
 export async function disconnectDB(id: string): Promise<void> {
   return Disconnect(id)
+}
+
+export async function removeConnection(id: string): Promise<void> {
+  return RemoveConnection(id)
+}
+
+export async function updateConnection(id: string, name: string, config: ConnectionConfig): Promise<string> {
+  return UpdateConnection(id, name, config)
 }

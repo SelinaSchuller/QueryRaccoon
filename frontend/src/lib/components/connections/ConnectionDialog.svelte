@@ -1,18 +1,31 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { connectionStore } from "$lib/stores/connections.svelte";
   import type { DriverType } from "$lib/api/connections";
   import { colors } from "$lib/colors";
 
-  type Props = { onclose: () => void };
-  let { onclose }: Props = $props();
+  import type { SavedConnection } from "$lib/stores/connections.svelte";
 
-  let name = $state("");
-  let host = $state("localhost");
-  let port = $state(5432);
-  let user = $state("postgres");
-  let password = $state("");
-  let database = $state("postgres");
-  let driverType = $state<DriverType>("postgresql");
+  type Props = { onclose: () => void; existing?: SavedConnection };
+  let { onclose, existing }: Props = $props();
+
+  const init = untrack(() => ({
+    name: existing?.name ?? "",
+    host: existing?.config.Host ?? "localhost",
+    port: existing?.config.Port ?? 5432,
+    user: existing?.config.User ?? "postgres",
+    password: existing?.config.Password ?? "",
+    database: existing?.config.Database ?? "postgres",
+    driverType: (existing?.config.DriverType ?? "postgresql") as DriverType,
+  }))
+
+  let name = $state(init.name);
+  let host = $state(init.host);
+  let port = $state(init.port);
+  let user = $state(init.user);
+  let password = $state(init.password);
+  let database = $state(init.database);
+  let driverType = $state<DriverType>(init.driverType);
   let error = $state("");
   let loading = $state(false);
 
@@ -47,15 +60,13 @@
     if (!database.trim()) { error = "Database is required"; return }
     error = "";
     loading = true;
+    const config = { Host: host, Port: port, User: user, Password: password, Database: database, DriverType: driverType };
     try {
-      await connectionStore.add(name, {
-        Host: host,
-        Port: port,
-        User: user,
-        Password: password,
-        Database: database,
-        DriverType: driverType,
-      });
+      if (existing) {
+        await connectionStore.update(existing.id, name, config);
+      } else {
+        await connectionStore.add(name, config);
+      }
       onclose();
     } catch (e: any) {
       error = e?.message ?? String(e);
@@ -69,7 +80,7 @@
   <div class="rounded-lg w-[480px] shadow-2xl" style="background-color: {colors.background.tertiary}; border: 1px solid {colors.border.primary}">
 
     <div class="flex items-center justify-between px-6 py-4" style="border-bottom: 1px solid {colors.border.primary}">
-      <h2 class="font-semibold text-sm" style="color: {colors.text.primary}">New Connection</h2>
+      <h2 class="font-semibold text-sm" style="color: {colors.text.primary}">{existing ? 'Edit Connection' : 'New Connection'}</h2>
       <button onclick={onclose} class="transition-colors cursor-pointer" style="color: {colors.text.muted}" onmouseenter={e => (e.currentTarget as HTMLElement).style.color = colors.text.primary} onmouseleave={e => (e.currentTarget as HTMLElement).style.color = colors.text.muted}>✕</button>
     </div>
 
@@ -133,7 +144,7 @@
         Cancel
       </button>
       <button onclick={submit} disabled={loading} class="px-3.5 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style="background-color: {colors.accent.primary}; color: #fff; border: none" onmouseenter={e => { if (!loading) (e.currentTarget as HTMLElement).style.backgroundColor = colors.accent.hover }} onmouseleave={e => (e.currentTarget as HTMLElement).style.backgroundColor = colors.accent.primary}>
-        {loading ? "Connecting…" : "Connect"}
+        {loading ? (existing ? "Saving…" : "Connecting…") : (existing ? "Save" : "Connect")}
       </button>
     </div>
   </div>

@@ -17,3 +17,11 @@ export function Disconnect(arg1) {
 export function GetConnections() {
   return window['go']['bindings']['ConnectionService']['GetConnections']();
 }
+
+export function RemoveConnection(arg1) {
+  return window['go']['bindings']['ConnectionService']['RemoveConnection'](arg1);
+}
+
+export function UpdateConnection(arg1, arg2, arg3) {
+  return window['go']['bindings']['ConnectionService']['UpdateConnection'](arg1, arg2, arg3);
+}
