@@ -3,9 +3,13 @@
   import { connectionStore } from "$lib/stores/connections.svelte";
   import { colors } from "$lib/colors";
   import { SaveFile, SaveXLSX } from '$wailsjs/go/bindings/ExportService';
+  import { execute } from '$lib/api/query';
+  import { tick } from 'svelte';
 
   type Props = { collapsed?: boolean; onToggleCollapse?: () => void }
   let { collapsed = false, onToggleCollapse }: Props = $props()
+
+  let editInputEl = $state<HTMLInputElement | null>(null);
 
   let tab = $derived(tabStore.active);
   let activeConn = $derived(connectionStore.active);
@@ -60,14 +64,179 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    if (editingCell) return; // let cell input handle its own keys
     if (!result) return;
-    if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
-      e.preventDefault();
-      selectedRows = new Set(allRows.map((_, i) => i));
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+    if (mod && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
+    if (mod && e.key === 'a') { e.preventDefault(); selectedRows = new Set(allRows.map((_, i) => i)); return; }
+    if (e.key === 'Escape') { selectedRows = new Set(); lastClickedRow = null; }
+  }
+
+  // --- Cell editing ---
+  type EditingCell = { row: number; col: number; value: string };
+  type PendingChange = { row: number; col: number; newValue: string };
+
+  let editingCell = $state<EditingCell | null>(null);
+  let pendingChanges = $state(new Map<string, PendingChange>()); // key: "row-col"
+  let failedCells = $state(new Set<string>()); // keys of cells that failed to save
+  let saveError = $state<string | null>(null);
+  let saveSuccess = $state(false);
+  let isSaving = $state(false);
+  let undoStack = $state<Map<string, PendingChange>[]>([]);
+  let redoStack = $state<Map<string, PendingChange>[]>([]);
+
+  // Reset on tab change or new result
+  $effect(() => {
+    tab?.id; // track tab id
+    pendingChanges = new Map();
+    failedCells = new Set();
+    saveError = null;
+    undoStack = [];
+    redoStack = [];
+  });
+
+  function pushUndo() {
+    undoStack = [...undoStack, new Map(pendingChanges)];
+    redoStack = [];
+    failedCells = new Set();
+  }
+
+  function undo() {
+    if (undoStack.length === 0) return;
+    redoStack = [...redoStack, new Map(pendingChanges)];
+    pendingChanges = undoStack[undoStack.length - 1];
+    undoStack = undoStack.slice(0, -1);
+    failedCells = new Set();
+    saveError = null;
+  }
+
+  function redo() {
+    if (redoStack.length === 0) return;
+    undoStack = [...undoStack, new Map(pendingChanges)];
+    pendingChanges = redoStack[redoStack.length - 1];
+    redoStack = redoStack.slice(0, -1);
+    failedCells = new Set();
+    saveError = null;
+  }
+
+  function cellKey(row: number, col: number) { return `${row}-${col}`; }
+
+  function getCellDisplayValue(rowIndex: number, colIndex: number): any {
+    const pending = pendingChanges.get(cellKey(rowIndex, colIndex));
+    if (pending) return pending.newValue === '' ? null : pending.newValue;
+    return allRows[rowIndex][colIndex];
+  }
+
+  async function startEdit(rowIndex: number, colIndex: number) {
+    const current = getCellDisplayValue(rowIndex, colIndex);
+    editingCell = { row: rowIndex, col: colIndex, value: current === null ? '' : String(current) };
+    await tick();
+    editInputEl?.focus();
+    editInputEl?.select();
+  }
+
+  function commitEdit() {
+    if (!editingCell || !result) { editingCell = null; return; }
+    const original = allRows[editingCell.row][editingCell.col];
+    const originalStr = original === null ? '' : String(original);
+    const key = cellKey(editingCell.row, editingCell.col);
+    if (editingCell.value === originalStr && !pendingChanges.has(key)) {
+      editingCell = null; return; // nothing changed
     }
-    if (e.key === 'Escape') {
-      selectedRows = new Set();
-      lastClickedRow = null;
+    pushUndo();
+    const next = new Map(pendingChanges);
+    if (editingCell.value === originalStr) {
+      next.delete(key);
+    } else {
+      next.set(key, { row: editingCell.row, col: editingCell.col, newValue: editingCell.value });
+    }
+    pendingChanges = next;
+    editingCell = null;
+  }
+
+  function cancelEdit() {
+    editingCell = null;
+  }
+
+  function discardChanges() {
+    pendingChanges = new Map();
+    failedCells = new Set();
+    saveError = null;
+  }
+
+  function extractTableName(): string | null {
+    const sql = tab?.sql ?? '';
+    // Capture schema.table or just table, stripping brackets/quotes
+    const match = sql.match(/\bFROM\b\s+((?:[\w\[\]"'`]+\.)?[\w\[\]"'`]+)/i);
+    if (!match) return null;
+    return match[1].replace(/[\[\]"'`]/g, '');
+  }
+
+  function sqlVal(v: any): string {
+    if (v === null) return 'NULL';
+    if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+    return `'${String(v).replace(/'/g, "''")}'`;
+  }
+
+  async function saveAllChanges() {
+    if (!result || !tab?.connectionId || pendingChanges.size === 0) return;
+
+    const tableName = extractTableName() ?? (tab.name !== 'Query' ? tab.name : null);
+    if (!tableName) {
+      saveError = "Can't determine table name — add a FROM clause to your query.";
+      return;
+    }
+
+    isSaving = true;
+    saveError = null;
+    failedCells = new Set();
+
+    const newFailed = new Set<string>();
+    let firstError: string | null = null;
+
+    for (const [key, change] of pendingChanges.entries()) {
+      const col = result.Columns[change.col];
+      const originalRow = allRows[change.row];
+      const newVal = change.newValue.trim() === '' || change.newValue.trim().toUpperCase() === 'NULL'
+        ? null : change.newValue;
+
+      const where = result.Columns.map((c, i) => {
+        const v = originalRow[i];
+        return v === null ? `"${c}" IS NULL` : `"${c}" = ${sqlVal(v)}`;
+      }).join(' AND ');
+
+      try {
+        await execute(tab.connectionId!, `UPDATE ${tableName} SET "${col}" = ${sqlVal(newVal)} WHERE ${where}`);
+      } catch (e: any) {
+        newFailed.add(key);
+        if (!firstError) firstError = e?.message ?? String(e);
+      }
+    }
+
+    failedCells = newFailed;
+    isSaving = false;
+
+    if (newFailed.size === 0) {
+      // Build revert map from current allRows (pre-refresh) so Cmd+Z after save
+      // creates pending changes that undo the save
+      const revertMap = new Map<string, PendingChange>();
+      for (const [key, change] of pendingChanges.entries()) {
+        const originalVal = allRows[change.row][change.col];
+        revertMap.set(key, { row: change.row, col: change.col, newValue: originalVal === null ? '' : String(originalVal) });
+      }
+
+      pendingChanges = new Map();
+      await tabStore.execute(tab.id);
+
+      // Push revert as undo entry — Cmd+Z will surface it as a new pending change
+      undoStack = [...undoStack, revertMap];
+      redoStack = [];
+
+      saveSuccess = true;
+      setTimeout(() => saveSuccess = false, 3000);
+    } else {
+      saveError = firstError;
     }
   }
 
@@ -184,6 +353,23 @@
 
     {#if result}
       <div class="ml-auto flex items-center gap-1">
+        <!-- Save / Discard pending changes -->
+        {#if pendingChanges.size > 0}
+          <button
+            onclick={discardChanges}
+            class="px-2 py-1 rounded text-xs cursor-pointer transition-colors"
+            style="color: {colors.text.muted}; border: 1px solid {colors.border.primary}"
+            onmouseenter={e => (e.currentTarget as HTMLElement).style.color = colors.text.primary}
+            onmouseleave={e => (e.currentTarget as HTMLElement).style.color = colors.text.muted}
+          >Discard</button>
+          <button
+            onclick={saveAllChanges}
+            disabled={isSaving}
+            class="px-2 py-1 rounded text-xs font-medium cursor-pointer"
+            style="background-color: {colors.accent.primary}; color: #fff; border: none; opacity: {isSaving ? '0.6' : '1'}"
+          >{isSaving ? 'Saving…' : `Save ${pendingChanges.size} change${pendingChanges.size !== 1 ? 's' : ''}`}</button>
+        {/if}
+
         <!-- Export dropdown -->
         <div class="relative">
           <button
@@ -237,7 +423,7 @@
 
     {:else if result}
       <table class="w-full text-xs border-collapse">
-        <thead class="sticky top-0" style="background-color: {colors.background.secondary}">
+        <thead class="sticky top-0 z-10" style="background-color: {colors.background.secondary}">
           <tr>
             {#each result.Columns as col}
               <th
@@ -258,15 +444,29 @@
               onmouseenter={e => { if (!selectedRows.has(i)) (e.currentTarget as HTMLElement).style.backgroundColor = colors.background.tertiary }}
               onmouseleave={e => { if (!selectedRows.has(i)) (e.currentTarget as HTMLElement).style.backgroundColor = i % 2 === 0 ? colors.background.primary : colors.background.secondary }}
             >
-              {#each row as cell}
+              {#each row as _cell, j}
+                {@const isPending = pendingChanges.has(cellKey(i, j))}
+                {@const displayVal = getCellDisplayValue(i, j)}
                 <td
-                  class="px-3 py-1.5 whitespace-nowrap max-w-xs truncate font-mono"
-                  style="color: {colors.text.primary}; border-bottom: 1px solid {colors.border.primary}"
+                  class="whitespace-nowrap max-w-xs font-mono relative"
+                  style="border-bottom: 1px solid {colors.border.primary}; padding: 0; background-color: {isPending ? (failedCells.has(cellKey(i, j)) ? '#7f1d1d33' : '#78350f33') : 'transparent'}"
+                  ondblclick={e => { e.stopPropagation(); startEdit(i, j); }}
                 >
-                  {#if cell === null}
-                    <span class="italic" style="color: {colors.text.muted}">NULL</span>
+                  {#if editingCell?.row === i && editingCell?.col === j}
+                    <input
+                      type="text"
+                      class="w-full px-3 py-1.5 font-mono text-xs outline-none"
+                      style="background-color: {colors.background.tertiary}; color: {colors.text.primary}; border: 1px solid {colors.accent.primary}; box-sizing: border-box"
+                      value={editingCell.value}
+                      oninput={e => { if (editingCell) editingCell.value = (e.target as HTMLInputElement).value; }}
+                      onkeydown={e => { if (e.key === 'Enter') { e.preventDefault(); commitEdit(); } if (e.key === 'Escape') cancelEdit(); e.stopPropagation(); }}
+                      onblur={commitEdit}
+                      bind:this={editInputEl}
+                    />
                   {:else}
-                    {String(cell)}
+                    <span class="block px-3 py-1.5 truncate" style="color: {displayVal === null ? colors.text.muted : isPending ? (failedCells.has(cellKey(i, j)) ? '#fca5a5' : '#fbbf24') : colors.text.primary}; font-style: {displayVal === null ? 'italic' : 'normal'}">
+                      {displayVal === null ? 'NULL' : String(displayVal)}
+                    </span>
                   {/if}
                 </td>
               {/each}
@@ -288,6 +488,21 @@
       </div>
     {/if}
   </div>
+
+  <!-- Save success toast -->
+  {#if saveSuccess}
+    <div class="absolute bottom-4 right-4 z-50 px-3 py-2 rounded text-xs" style="background-color: #14532d; color: #86efac; border: 1px solid #22c55e">
+      Changes saved successfully
+    </div>
+  {/if}
+
+  <!-- Save error toast -->
+  {#if saveError}
+    <div class="absolute bottom-4 right-4 z-50 px-3 py-2 rounded text-xs max-w-sm" style="background-color: #7f1d1d; color: #fca5a5; border: 1px solid #ef4444">
+      <span class="font-semibold">Save failed: </span>{saveError}
+      <button onclick={() => saveError = null} class="ml-2 underline cursor-pointer">dismiss</button>
+    </div>
+  {/if}
 
   <!-- Export modal -->
   {#if exportModal && result}

@@ -14,42 +14,53 @@ func NewSchemaService(manager *connections.Manager) *SchemaService {
 	return &SchemaService{Manager: manager}
 }
 
-func (s *SchemaService) GetDatabases(connectionID string) ([]string, error) {
+func (s *SchemaService) getInspector(connectionID string) (schema.Inspector, error) {
 	conn, ok := s.Manager.Get(connectionID)
 	if !ok {
 		return nil, fmt.Errorf("connection %s not found", connectionID)
 	}
-	return conn.Inspector.GetDatabases()
+	if conn.Inspector == nil {
+		return nil, fmt.Errorf("not connected")
+	}
+	return conn.Inspector, nil
+}
+
+func (s *SchemaService) GetDatabases(connectionID string) ([]string, error) {
+	inspector, err := s.getInspector(connectionID)
+	if err != nil {
+		return nil, err
+	}
+	return inspector.GetDatabases()
 }
 
 func (s *SchemaService) GetSchemas(connectionID string, database string) ([]string, error) {
-	conn, ok := s.Manager.Get(connectionID)
-	if !ok {
-		return nil, fmt.Errorf("connection %s not found", connectionID)
+	inspector, err := s.getInspector(connectionID)
+	if err != nil {
+		return nil, err
 	}
-	return conn.Inspector.GetSchemas(database)
+	return inspector.GetSchemas(database)
 }
 
 func (s *SchemaService) GetTables(connectionID string, schemaName string) ([]string, error) {
-	conn, ok := s.Manager.Get(connectionID)
-	if !ok {
-		return nil, fmt.Errorf("connection %s not found", connectionID)
+	inspector, err := s.getInspector(connectionID)
+	if err != nil {
+		return nil, err
 	}
-	return conn.Inspector.GetTables(schemaName)
+	return inspector.GetTables(schemaName)
 }
 
 func (s *SchemaService) GetViews(connectionID string, schemaName string) ([]string, error) {
-	conn, ok := s.Manager.Get(connectionID)
-	if !ok {
-		return nil, fmt.Errorf("connection %s not found", connectionID)
+	inspector, err := s.getInspector(connectionID)
+	if err != nil {
+		return nil, err
 	}
-	return conn.Inspector.GetViews(schemaName)
+	return inspector.GetViews(schemaName)
 }
 
 func (s *SchemaService) GetColumns(connectionID string, schemaName string, table string) ([]schema.Column, error) {
-	conn, ok := s.Manager.Get(connectionID)
-	if !ok {
-		return nil, fmt.Errorf("connection %s not found", connectionID)
+	inspector, err := s.getInspector(connectionID)
+	if err != nil {
+		return nil, err
 	}
-	return conn.Inspector.GetColumns(schemaName, table)
+	return inspector.GetColumns(schemaName, table)
 }
