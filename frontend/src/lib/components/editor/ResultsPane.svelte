@@ -70,7 +70,15 @@
     if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
     if (mod && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
     if (mod && e.key === 'a') { e.preventDefault(); selectedRows = new Set(allRows.map((_, i) => i)); return; }
-    if (e.key === 'Escape') { selectedRows = new Set(); lastClickedRow = null; }
+    if (e.key === 'Escape') {
+      if (deleteConfirm) { deleteConfirm = false; return; }
+      selectedRows = new Set(); lastClickedRow = null;
+    }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedRows.size > 0) {
+      e.preventDefault();
+      if (deleteConfirm) { deleteSelectedRows(); } else { deleteConfirm = true; }
+      return;
+    }
   }
 
   // --- Cell editing ---
@@ -240,6 +248,45 @@
     }
   }
 
+  // --- Row deletion ---
+  let deleteConfirm = $state(false);
+  let isDeleting = $state(false);
+  let deleteError = $state<string | null>(null);
+
+  async function deleteSelectedRows() {
+    if (!result || !tab?.connectionId || selectedRows.size === 0) return;
+
+    const tableName = extractTableName() ?? (tab.name !== 'Query' ? tab.name : null);
+    if (!tableName) {
+      deleteError = "Can't determine table name — add a FROM clause to your query.";
+      deleteConfirm = false;
+      return;
+    }
+
+    isDeleting = true;
+    deleteError = null;
+
+    try {
+      for (const rowIndex of selectedRows) {
+        const originalRow = allRows[rowIndex];
+        const where = result.Columns.map((c, i) => {
+          const v = originalRow[i];
+          return v === null ? `"${c}" IS NULL` : `"${c}" = ${sqlVal(v)}`;
+        }).join(' AND ');
+        await execute(tab.connectionId!, `DELETE FROM ${tableName} WHERE ${where}`);
+      }
+      selectedRows = new Set();
+      lastClickedRow = null;
+      deleteConfirm = false;
+      await tabStore.execute(tab.id);
+    } catch (e: any) {
+      deleteError = e?.message ?? String(e);
+      deleteConfirm = false;
+    } finally {
+      isDeleting = false;
+    }
+  }
+
   // --- Status label ---
   let statusLabel = $derived(
     !result ? '' :
@@ -349,6 +396,33 @@
 
     {#if tab?.executionTime != null}
       <span class="text-xs" style="color: {colors.text.muted}">· {tab.executionTime}ms</span>
+    {/if}
+
+    {#if selectedRows.size > 0 && result}
+      {#if deleteConfirm}
+        <span class="text-xs" style="color: #f87171">Delete {selectedRows.size} row{selectedRows.size !== 1 ? 's' : ''}?</span>
+        <button
+          onclick={deleteSelectedRows}
+          disabled={isDeleting}
+          class="px-2 py-0.5 rounded text-xs font-medium cursor-pointer"
+          style="background-color: #ef4444; color: #fff; border: none; opacity: {isDeleting ? '0.6' : '1'}"
+        >{isDeleting ? 'Deleting…' : 'Confirm'}</button>
+        <button
+          onclick={() => deleteConfirm = false}
+          class="px-2 py-0.5 rounded text-xs cursor-pointer"
+          style="color: {colors.text.muted}; border: 1px solid {colors.border.primary}"
+          onmouseenter={e => (e.currentTarget as HTMLElement).style.color = colors.text.primary}
+          onmouseleave={e => (e.currentTarget as HTMLElement).style.color = colors.text.muted}
+        >Cancel</button>
+      {:else}
+        <button
+          onclick={() => deleteConfirm = true}
+          class="px-2 py-0.5 rounded text-xs cursor-pointer transition-colors"
+          style="color: #f87171; border: 1px solid #f8717144"
+          onmouseenter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = '#7f1d1d44' }}
+          onmouseleave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent' }}
+        >Delete {selectedRows.size}</button>
+      {/if}
     {/if}
 
     {#if result}
@@ -493,6 +567,14 @@
   {#if saveSuccess}
     <div class="absolute bottom-4 right-4 z-50 px-3 py-2 rounded text-xs" style="background-color: #14532d; color: #86efac; border: 1px solid #22c55e">
       Changes saved successfully
+    </div>
+  {/if}
+
+  <!-- Delete error toast -->
+  {#if deleteError}
+    <div class="absolute bottom-4 right-4 z-50 px-3 py-2 rounded text-xs max-w-sm" style="background-color: #7f1d1d; color: #fca5a5; border: 1px solid #ef4444">
+      <span class="font-semibold">Delete failed: </span>{deleteError}
+      <button onclick={() => deleteError = null} class="ml-2 underline cursor-pointer">dismiss</button>
     </div>
   {/if}
 

@@ -5,8 +5,12 @@
   import StatusBar from "$lib/components/layout/StatusBar.svelte";
   import QueryEditor from "$lib/components/editor/QueryEditor.svelte";
   import ResultsPane from "$lib/components/editor/ResultsPane.svelte";
+  import SchemaEditor from "$lib/components/editor/SchemaEditor.svelte";
   import { colors } from "$lib/colors";
   import { connectionStore } from "$lib/stores/connections.svelte";
+  import { tabStore } from "$lib/stores/tabs.svelte";
+
+  let activeTab = $derived(tabStore.active);
 
   onMount(async () => {
     await connectionStore.loadSaved()
@@ -67,33 +71,37 @@
     <Sidebar />
 
     <div class="flex flex-col flex-1 overflow-hidden">
-      <div style={editorStyle()}>
-        <QueryEditor
-          collapsed={editorCollapsed}
-          onToggleCollapse={() => editorCollapsed = !editorCollapsed}
-        />
-      </div>
-
-      {#if !editorCollapsed && !resultsCollapsed}
-        <button
-          type="button"
-          aria-label="Resize panels"
-          class="h-1.5 w-full shrink-0 cursor-ns-resize transition-colors border-none p-0"
-          style="background-color: {colors.border.primary}"
-          onmousedown={startDrag}
-          onmouseenter={e => (e.currentTarget as HTMLElement).style.backgroundColor = colors.accent.primary}
-          onmouseleave={e => (e.currentTarget as HTMLElement).style.backgroundColor = colors.border.primary}
-        ></button>
+      {#if activeTab?.kind === 'schema'}
+        <SchemaEditor />
       {:else}
-        <div class="h-px shrink-0" style="background-color: {colors.border.primary}"></div>
-      {/if}
+        <div style={editorStyle()}>
+          <QueryEditor
+            collapsed={editorCollapsed}
+            onToggleCollapse={() => editorCollapsed = !editorCollapsed}
+          />
+        </div>
 
-      <div style={resultsStyle()}>
-        <ResultsPane
-          collapsed={resultsCollapsed}
-          onToggleCollapse={() => resultsCollapsed = !resultsCollapsed}
-        />
-      </div>
+        {#if !editorCollapsed && !resultsCollapsed}
+          <button
+            type="button"
+            aria-label="Resize panels"
+            class="h-1.5 w-full shrink-0 cursor-ns-resize transition-colors border-none p-0"
+            style="background-color: {colors.border.primary}"
+            onmousedown={startDrag}
+            onmouseenter={e => (e.currentTarget as HTMLElement).style.backgroundColor = colors.accent.primary}
+            onmouseleave={e => (e.currentTarget as HTMLElement).style.backgroundColor = colors.border.primary}
+          ></button>
+        {:else}
+          <div class="h-px shrink-0" style="background-color: {colors.border.primary}"></div>
+        {/if}
+
+        <div style={resultsStyle()}>
+          <ResultsPane
+            collapsed={resultsCollapsed}
+            onToggleCollapse={() => resultsCollapsed = !resultsCollapsed}
+          />
+        </div>
+      {/if}
     </div>
   </div>
 

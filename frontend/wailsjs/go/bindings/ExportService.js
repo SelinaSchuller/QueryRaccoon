@@ -6,6 +6,14 @@ export function OnStartup(arg1) {
   return window['go']['bindings']['ExportService']['OnStartup'](arg1);
 }
 
+export function OpenFileDialog(arg1, arg2) {
+  return window['go']['bindings']['ExportService']['OpenFileDialog'](arg1, arg2);
+}
+
+export function PickFilePath(arg1, arg2, arg3) {
+  return window['go']['bindings']['ExportService']['PickFilePath'](arg1, arg2, arg3);
+}
+
 export function SaveFile(arg1, arg2) {
   return window['go']['bindings']['ExportService']['SaveFile'](arg1, arg2);
 }

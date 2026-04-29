@@ -6,11 +6,13 @@
   import ConnectionDialog from "$lib/components/connections/ConnectionDialog.svelte";
   import ContextMenu from "$lib/components/connections/ContextMenu.svelte";
   import TreeNode from "$lib/components/schema-browser/TreeNode.svelte";
+  import SeedDataModal from "$lib/components/editor/SeedDataModal.svelte";
   import { colors } from "$lib/colors";
 
   let showDialog = $state(false);
   let editingConn = $state<SavedConnection | undefined>(undefined);
   let contextMenu = $state<{ x: number; y: number; conn: SavedConnection } | null>(null);
+  let seedTarget = $state<{ schemaName: string; tableName: string } | null>(null);
 
   function openContextMenu(e: MouseEvent, conn: SavedConnection) {
     e.preventDefault();
@@ -53,6 +55,15 @@
   async function disconnect(id: string, e: MouseEvent) {
     e.stopPropagation();
     await connectionStore.disconnect(id);
+  }
+
+  function handleEditTable(schemaName: string, name: string) {
+    if (!activeConn) return
+    tabStore.openSchemaTab(activeConn.id, schemaName, name)
+  }
+
+  function handleSeedTable(schemaName: string, name: string) {
+    seedTarget = { schemaName, tableName: name }
   }
 
   function handleTableClick(schemaName: string, name: string, _type: 'table' | 'view') {
@@ -157,6 +168,8 @@
           {node}
           connectionId={activeConn.id}
           onTableClick={handleTableClick}
+          onEditTable={handleEditTable}
+          onSeedTable={handleSeedTable}
           onRefreshNode={(n) => schemaStore.refreshNode(activeConn.id, n)}
         />
       {/each}
@@ -168,6 +181,16 @@
   <ConnectionDialog
     existing={editingConn}
     onclose={() => { showDialog = false; editingConn = undefined; }}
+  />
+{/if}
+
+{#if seedTarget && activeConn}
+  <SeedDataModal
+    connectionId={activeConn.id}
+    driver={activeConn.config.DriverType}
+    schemaName={seedTarget.schemaName}
+    tableName={seedTarget.tableName}
+    onclose={() => seedTarget = null}
   />
 {/if}
 

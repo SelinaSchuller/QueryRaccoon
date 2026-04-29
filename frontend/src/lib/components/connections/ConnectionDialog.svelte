@@ -3,6 +3,7 @@
   import { connectionStore } from "$lib/stores/connections.svelte";
   import type { DriverType } from "$lib/api/connections";
   import { colors } from "$lib/colors";
+  import { OpenFileDialog, PickFilePath } from '$wailsjs/go/bindings/ExportService';
 
   import type { SavedConnection } from "$lib/stores/connections.svelte";
 
@@ -58,6 +59,9 @@
   async function submit() {
     if (!name.trim()) { error = "Name is required"; return }
     if (!database.trim()) { error = "Database is required"; return }
+    if (driverType === 'sqlite' && !database.includes('.')) {
+      database = database + '.db'
+    }
     error = "";
     loading = true;
     const config = { Host: host, Port: port, User: user, Password: password, Database: database, DriverType: driverType };
@@ -102,8 +106,39 @@
 
       {#if driverType === "sqlite"}
         <div>
-          <label for="conn-db-path" class="block text-xs mb-1" style="color: {colors.text.muted}">Database File Path</label>
-          <input id="conn-db-path" bind:value={database} placeholder="/path/to/database.db" autocapitalize="off" autocomplete="off" spellcheck={false} class="w-full rounded-md px-2.5 py-1.5 text-xs outline-none box-border" style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.primary}" onfocus={e => (e.currentTarget as HTMLElement).style.borderColor = colors.accent.primary} onblur={e => (e.currentTarget as HTMLElement).style.borderColor = colors.border.primary} />
+          <label for="conn-db-path" class="block text-xs mb-1" style="color: {colors.text.muted}">Database File Path <span class="font-normal" style="color: {colors.text.muted}">— browse to open existing, or type a new path to create</span></label>
+          <div class="flex gap-2">
+            <input id="conn-db-path" bind:value={database} placeholder="/path/to/database.db" autocapitalize="off" autocomplete="off" spellcheck={false} class="flex-1 rounded-md px-2.5 py-1.5 text-xs outline-none box-border" style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.primary}" onfocus={e => (e.currentTarget as HTMLElement).style.borderColor = colors.accent.primary} onblur={e => (e.currentTarget as HTMLElement).style.borderColor = colors.border.primary} />
+            <button
+              type="button"
+              onclick={async () => {
+                const path = await OpenFileDialog('Open existing SQLite database', [
+                  { DisplayName: 'SQLite Database', Pattern: '*.db;*.sqlite;*.sqlite3' },
+                  { DisplayName: 'All Files', Pattern: '*' },
+                ])
+                if (path) database = path
+              }}
+              class="px-2.5 py-1.5 rounded-md text-xs cursor-pointer transition-colors shrink-0"
+              style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.muted}"
+              onmouseenter={e => (e.currentTarget as HTMLElement).style.color = colors.text.primary}
+              onmouseleave={e => (e.currentTarget as HTMLElement).style.color = colors.text.muted}
+              title="Open existing file"
+            >Open…</button>
+            <button
+              type="button"
+              onclick={async () => {
+                const path = await PickFilePath('Create new SQLite database', 'database.db', [
+                  { DisplayName: 'SQLite Database', Pattern: '*.db;*.sqlite;*.sqlite3' },
+                ])
+                if (path) database = path
+              }}
+              class="px-2.5 py-1.5 rounded-md text-xs cursor-pointer transition-colors shrink-0"
+              style="background-color: {colors.background.secondary}; border: 1px solid {colors.border.primary}; color: {colors.text.muted}"
+              onmouseenter={e => (e.currentTarget as HTMLElement).style.color = colors.text.primary}
+              onmouseleave={e => (e.currentTarget as HTMLElement).style.color = colors.text.muted}
+              title="Choose location for new file"
+            >New…</button>
+          </div>
         </div>
       {:else}
         <div class="flex gap-3">

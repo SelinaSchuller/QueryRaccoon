@@ -68,16 +68,21 @@ func (i *SQLiteInspector) GetColumns(schemaParam, table string) ([]schema.Column
 	var columns []schema.Column
 	for rows.Next() {
 		var cid int
-		var name, colType, dfltValue string
+		var name, colType string
+		var dfltValue *string
 		var notNull, pk int
 		if err := rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
 			return nil, err
+		}
+		var defaultVal string
+		if dfltValue != nil {
+			defaultVal = *dfltValue
 		}
 		columns = append(columns, schema.Column{
 			Name:     name,
 			Type:     colType,
 			Nullable: notNull == 0,
-			Default:  dfltValue,
+			Default:  defaultVal,
 		})
 	}
 	return columns, nil
