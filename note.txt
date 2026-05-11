@@ -1,0 +1,62 @@
+QueryRaccoon
+
+A database viewer and management application for windows and mac. 
+
+Why another database manager application?
+QueryRaccoon is…
+Free
+Easy to use
+Only needed tools
+Useable for: postgres, mssql, mysql and sqlite (currently. maybe more added later)
+
+Small fixes:
+More export methods
+Sql insert
+xlsx
+WE always use the “Use fetched rows” and add options selected rows only and selected columns only.
+Reveal in finder/explorer after saving
+Large result warning (>100k rows confirm dialog)
+When a connection is not online we show that (not just no databases)
+
+
+Features:
+View table
+Refresh button
+Edit values and columns, tables, database etc. 
+Use query scripts to get info and edit stuff
+Be able to use ctrl z to go back and ctrl shit z to redo. Correct commands for windows and mac. 
+Easily view the values of id’s, idk the layout though. 
+
+Simple filters to use to filter values instead of writing queries.
+Be able to save query scripts in a structure in application so user can easily reuse it or copy it for another database.
+Able to easily seed data (so maybe we make it so the user could insert a file of data, or enter the data themselves so they could easily seed it through this application. Maybe we could even though that we generate random values too and the user can just say the necessities of the data.)
+Be able to pin tables and or databases so they always show there and the user doesnt have to reopen them all when they start the app.
+Maybe a way we can easily see all the information about a certain entity, so everything connected to that entity we can see.
+We can drag connections up and down to decide which one to view first and which later
+User can pin tables to a header bar to have quick access to them
+
+
+Frontend:
+Improve colors
+Let user pick theme colors
+Small adjustments:
+Icons for the sidebar
+When adding connections make the database driver dropdown have a icon so its clear its a dropdown
+Make an icon for queryraccoon
+
+High impact / most expected in a DB GUI:
+SQL syntax highlighting — swap the plain textarea for CodeMirror or Monaco. Makes the editor actually feel like a tool.
+Export results — "Copy as CSV", "Copy as JSON" buttons on the results pane. Simple but very useful.
+Table structure tab — clicking a table shows column names, types, nullability, indexes instead of just running a SELECT.
+Security (already planned):
+4. Password encryption — the AES-256 keyfile approach we noted down. Right now passwords sit in plaintext in the config dir.
+Nice-to-have:
+5. Query history — persist recent queries per connection so you can re-run them.
+I'd suggest doing syntax highlighting next — it's the biggest UX jump and makes the app feel complete. CodeMirror 6 has a clean JS API and works well in Svelte. After that, export is quick and table structure is a natural companion to the schema browser.
+
+
+Production:
+Encrypt passwords in connections.json using only the Go standard library (crypto/aes, crypto/cipher, crypto/rand). On first run, generate a random AES-256 key and store it in ~/.config/QueryRaccoon/.keyfile with restricted permissions. Encrypt passwords with that key before saving, decrypt on load. Change is fully contained in internal/storage/storage.go — nothing else needs to touch it.
+
+
+Add personalisation settings. Like highlighting, colors.
