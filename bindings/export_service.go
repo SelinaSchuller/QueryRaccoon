@@ -70,6 +70,21 @@ func (s *ExportService) SaveXLSX(columns []string, rows [][]any, defaultFilename
 	return nil
 }
 
+func (s *ExportService) OpenFileDialog(title string, filters []wailsruntime.FileFilter) (string, error) {
+	return wailsruntime.OpenFileDialog(s.ctx, wailsruntime.OpenDialogOptions{
+		Title:   title,
+		Filters: filters,
+	})
+}
+
+func (s *ExportService) PickFilePath(title string, defaultFilename string, filters []wailsruntime.FileFilter) (string, error) {
+	return wailsruntime.SaveFileDialog(s.ctx, wailsruntime.SaveDialogOptions{
+		Title:           title,
+		DefaultFilename: defaultFilename,
+		Filters:         filters,
+	})
+}
+
 func revealFile(path string) {
 	switch goruntime.GOOS {
 	case "darwin":

@@ -9,9 +9,20 @@
     connectionId: string
     depth?: number
     onTableClick?: (schemaName: string, name: string, _type: 'table' | 'view') => void
+    onEditTable?: (schemaName: string, name: string) => void
+    onSeedTable?: (schemaName: string, name: string) => void
     onRefreshNode?: (node: TreeNodeData) => void
   }
-  let { node, connectionId, depth = 0, onTableClick, onRefreshNode }: Props = $props()
+  let { node, connectionId, depth = 0, onTableClick, onEditTable, onSeedTable, onRefreshNode }: Props = $props()
+
+  let contextMenu = $state<{ x: number; y: number } | null>(null)
+
+  function handleContextMenu(e: MouseEvent) {
+    if (node.type !== 'table') return
+    e.preventDefault()
+    e.stopPropagation()
+    contextMenu = { x: e.clientX, y: e.clientY }
+  }
 
   let hovered = $state(false)
 
@@ -55,6 +66,7 @@
     style="background-color: {hovered ? colors.background.tertiary : 'transparent'}"
     onmouseenter={() => hovered = true}
     onmouseleave={() => hovered = false}
+    oncontextmenu={handleContextMenu}
   >
     <button
       onclick={toggle}
@@ -90,7 +102,50 @@
 
   {#if node.expanded && node.children.length > 0}
     {#each node.children as child (child.id)}
-      <TreeNode node={child} {connectionId} depth={depth + 1} {onTableClick} {onRefreshNode} />
+      <TreeNode node={child} {connectionId} depth={depth + 1} {onTableClick} {onEditTable} {onSeedTable} {onRefreshNode} />
     {/each}
   {/if}
 </div>
+
+{#if contextMenu && node.type === 'table'}
+  <div class="fixed inset-0 z-40" role="presentation" onclick={() => contextMenu = null}></div>
+  <div
+    class="fixed z-50 rounded-md shadow-xl py-1 min-w-[160px]"
+    style="left: {contextMenu.x}px; top: {contextMenu.y}px; background-color: {colors.background.tertiary}; border: 1px solid {colors.border.primary}"
+  >
+    <button
+      onclick={() => { toggle(); contextMenu = null; }}
+      class="w-full text-left px-3 py-1.5 text-xs cursor-pointer transition-colors"
+      style="color: {colors.text.primary}"
+      onmouseenter={e => (e.currentTarget as HTMLElement).style.backgroundColor = colors.background.secondary}
+      onmouseleave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
+    >Browse rows</button>
+    {#if onEditTable}
+      <button
+        onclick={() => { onEditTable!(node.schemaName!, node.label); contextMenu = null; }}
+        class="w-full text-left px-3 py-1.5 text-xs cursor-pointer transition-colors"
+        style="color: {colors.text.primary}"
+        onmouseenter={e => (e.currentTarget as HTMLElement).style.backgroundColor = colors.background.secondary}
+        onmouseleave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
+      >Edit table structure</button>
+    {/if}
+    {#if onSeedTable}
+      <button
+        onclick={() => { onSeedTable!(node.schemaName!, node.label); contextMenu = null; }}
+        class="w-full text-left px-3 py-1.5 text-xs cursor-pointer transition-colors"
+        style="color: {colors.text.primary}"
+        onmouseenter={e => (e.currentTarget as HTMLElement).style.backgroundColor = colors.background.secondary}
+        onmouseleave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
+      >Seed data</button>
+    {/if}
+    {#if onRefreshNode}
+      <button
+        onclick={() => { onRefreshNode!(node); contextMenu = null; }}
+        class="w-full text-left px-3 py-1.5 text-xs cursor-pointer transition-colors"
+        style="color: {colors.text.primary}"
+        onmouseenter={e => (e.currentTarget as HTMLElement).style.backgroundColor = colors.background.secondary}
+        onmouseleave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
+      >Refresh</button>
+    {/if}
+  </div>
+{/if}

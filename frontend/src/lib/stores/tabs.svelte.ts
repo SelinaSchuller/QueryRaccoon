@@ -3,6 +3,7 @@ import type { QueryResult } from '$lib/api/query'
 
 export type Tab = {
   id: string
+  kind: 'query' | 'schema'
   name: string
   connectionId: string | null
   sql: string
@@ -10,11 +11,13 @@ export type Tab = {
   isExecuting: boolean
   error: string | null
   executionTime: number | null
+  schemaTab?: { schemaName: string; tableName: string }
 }
 
 function makeTab(overrides: Partial<Tab> = {}): Tab {
   return {
     id: crypto.randomUUID(),
+    kind: 'query',
     name: 'Query',
     connectionId: null,
     sql: '',
@@ -61,6 +64,17 @@ class TabStore {
   setConnection(id: string, connectionId: string): void {
     const tab = this.list.find(t => t.id === id)
     if (tab) tab.connectionId = connectionId
+  }
+
+  openSchemaTab(connectionId: string, schemaName: string, tableName: string): void {
+    const tab = makeTab({
+      kind: 'schema',
+      name: tableName,
+      connectionId,
+      schemaTab: { schemaName, tableName },
+    })
+    this.list.push(tab)
+    this.activeId = tab.id
   }
 
   async openDataTab(connectionId: string, name: string, sql: string): Promise<void> {
